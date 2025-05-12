@@ -30,16 +30,16 @@ type Raw struct {
 
 // Выражение
 type Expr struct {
-	ID     int64   `json:"id"` // Номер выражения
-	Oper   string  // Само выражение
-	Tasks  []Task  `json:"tasks"` // Задачи выражения
-	Ans    float64 // Ответ
-	Status int8    // Статус действия: 0 - не решено, 1 - решается, 2 - решено.
+	ID       int     `json:"id"` // Номер выражения
+	Oper     string  // Само выражение
+	LastTask int     `json:"lasttask"` // Номер последней задачи
+	Ans      float64 // Ответ
+	Status   int8    // Статус действия: 0 - не решено, 1 - решается, 2 - решено.
 }
 
 // Выражение, которое отображается в API
 type ExprDsp struct {
-	ID     int64   `json:"id"`
+	ID     int     `json:"id"`
 	Status string  `json:"status"`
 	Result float64 `json:"result"`
 }
@@ -51,9 +51,10 @@ type DspArr struct {
 
 // Задача
 type Task struct {
-	ID             int64   `json:"id"` // ID
+	ID             int     `json:"id"` // ID
 	ProbID         int     // Номер выражения действия
-	Links          [2]int  `json:"links"`
+	Link1          int     `json:"link1"`
+	Link2          int     `json:"link2"`
 	Arg1           float64 `json:"arg1"`           // Первое число
 	Arg2           float64 `json:"arg2"`           // Второе число
 	Operation      string  `json:"operation"`      // Операция
@@ -64,7 +65,7 @@ type Task struct {
 
 // Ответ на задачу по ID
 type TaskInc struct {
-	ID     int64   `json:"id"`
+	ID     int     `json:"id"`
 	Result float64 `json:"float64"`
 }
 

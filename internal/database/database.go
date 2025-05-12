@@ -11,7 +11,7 @@ import (
 // Создаёт базу данных (Обновляет если существует)
 func Init() error {
 
-	db, err := sql.Open("sqlite3", "./expressions.db")
+	db, err := sql.Open("sqlite3", "./calc.db")
 
 	if err != nil {
 		return err
@@ -30,7 +30,8 @@ func Init() error {
 	CREATE TABLE IF NOT EXISTS tasks (
 		id        		INTEGER PRIMARY KEY AUTOINCREMENT,
 		probid			INT NOT NULL,
-		links 			VARCHAR(255),
+		link1 			INT,
+		link2			INT,
 		Arg1          	REAL,
 		Arg2           	REAL,
 		Operation      	VARCHAR(255),
@@ -52,7 +53,7 @@ func Init() error {
 }
 
 // Добавляет выражение в базу данных (Если это выражение уже существует - функция обновляет его)
-func AddExpr(expr lib.Expr) (int64, error) {
+func AddExpr(expr lib.Expr) (int, error) {
 	db, err := sql.Open("sqlite3", "./calc.db")
 
 	if err != nil {
@@ -69,12 +70,97 @@ func AddExpr(expr lib.Expr) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return id, nil
+	return int(id), nil
+}
+
+func AddTask(task lib.Task) (int, error) {
+	db, err := sql.Open("sqlite3", "./calc.db")
+
+	if err != nil {
+		return 0, err
+	}
+
+	defer db.Close()
+
+	err = db.QueryRow("SELECT id FROM operation WHERE id = $1;", task.ID).Scan(&task.ID)
+
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return 0, err
+		}
+
+		result, err := db.Exec("INSERT INTO expressions (probid, link1, link2, Arg1, Arg2, Operation, Operation_time, Status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", task.ProbID, task.Link1, task.Link2, task.Arg1, task.Arg2, task.Operation, task.Operation_time, task.Status)
+
+		if err != nil {
+			return 0, err
+		}
+
+		id, err := result.LastInsertId()
+
+		if err != nil {
+			return 0, err
+		}
+
+		return int(id), nil
+	}
+
+	_, err = db.Exec("UPDATE operation SET probid = ?, link1 = ?, link2 = ?, Arg1 = ?, Arg2 = ?, Operation = ?, Operation_time = ?, Status = ?", task.ProbID, task.Link1, task.Link2, task.Arg1, task.Arg2, task.Operation, task.Operation_time, task.Status)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return -1, nil
+}
+
+// Обновляет ответ и статус выражения
+func UpdExpr(id int, status int8, ans float64) error {
+	db, err := sql.Open("sqlite3", "./calc.db")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.Exec("UPDATE expressions SET ans = ?, status = ? WHERE id = ?;", ans, status, id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Обновляет ответ и статус задачи
+func UpdTask(id int, status int8, ans float64) error {
+	db, err := sql.Open("sqlite3", "./calc.db")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.Exec("UPDATE task SET ans = ?, status = ? WHERE id = ?;", ans, status, id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Удаляет операцию из базы данных
+func DelTask(id int) error {
+	db, err := sql.Open("sqlite3", "./calc.db")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.Exec("DELETE FROM operation WHERE id = ?;", id)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Возращает массив из выражений
 func GetAllExpr() (lib.DspArr, error) {
-	db, err := sql.Open("sqlite3", "./expressions.db")
+	db, err := sql.Open("sqlite3", "./calc.db")
 	if err != nil {
 		return lib.DspArr{}, err
 	}
@@ -106,120 +192,37 @@ func GetAllExpr() (lib.DspArr, error) {
 	return exprs, nil
 }
 
-// Удаляет все операции выражения из базы данных
-func DelProbChilds(id int64) error {
-	db, err := sql.Open("sqlite3", "./calc.db")
-
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	_, err = db.Exec("DELETE FROM operation WHERE probid = ?;", id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Обновляет ответ и статус выражения
-func UpdExpr(id int64, status int, ans float64) error {
-	db, err := sql.Open("sqlite3", "./calc.db")
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	_, err = db.Exec("UPDATE expressions SET ans = ?, status = ? WHERE id = ?;", ans, status, id)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// Добавляет операцию в базу данных (Если это выражение уже существует - функция обновляет его)
-func AddOper(oper lib.Expr) error {
-	db, err := sql.Open("sqlite3", "./expressions.db")
-	s := 0
-	l := 0
-
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	if oper.Solving {
-		s = 1
-	}
-	if oper.Last {
-		l = 1
-	}
-
-	err = db.QueryRow("SELECT id FROM operation WHERE id = $1;", oper.ID).Scan(&oper.ID)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return err
-		}
-		_, err = db.Exec("INSERT INTO operation (probid, operation, ans, solving, last) VALUES (?, ?, ?, ?, ?)", oper.ProbID, oper.Expr, oper.Ans, s, l)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-	_, err = db.Exec("UPDATE operation SET probid = ?, operation = ?, ans = ?, solving = ?, last = ? WHERE id = ?;", oper.ProbID, oper.Expr, oper.Ans, s, l, oper.ID)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// Удаляет операцию из базы данных
-func DelOper(id int64) error {
-	db, err := sql.Open("sqlite3", "./expressions.db")
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	_, err = db.Exec("DELETE FROM operation WHERE id = ?;", id)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // Достаёт выражение по ID
-func GetExpr(id int64) (lib.Expr, error) {
-	db, err := sql.Open("sqlite3", "./expressions.db")
+func GetExpr(id int) (lib.Expr, error) {
+	db, err := sql.Open("sqlite3", "./calc.db")
 	if err != nil {
 		return lib.Expr{}, err
 	}
 	defer db.Close()
 
-	row := db.QueryRow("SELECT * FROM expression WHERE ID = ?", id)
+	row := db.QueryRow("SELECT * FROM expressions WHERE ID = ?", id)
 
 	var p lib.Expr
 
-	if err := row.Scan(&p.ID, &p.ProbID, &p.Expr, &p.Ans, &p.Solving, &p.Last); err != nil {
+	if err := row.Scan(&p.ID, &p.Oper, &p.LastTask, &p.Ans, &p.Status); err != nil {
 		return lib.Expr{}, err
 	}
 	return p, nil
 }
 
-// Достаёт операцию по ID
-func GetTask(id int64) (lib.Task, error) {
-	db, err := sql.Open("sqlite3", "./expressions.db")
+// Достаёт операцию по ID и ссылкам
+func GetTask(exprid int, id int) (lib.Task, error) {
+	db, err := sql.Open("sqlite3", "./calc.db")
 	if err != nil {
 		return lib.Task{}, err
 	}
 	defer db.Close()
 
-	row := db.QueryRow("SELECT * FROM operation WHERE ID = ?", id)
+	row := db.QueryRow("SELECT * FROM tasks WHERE ID = ?", id)
 
 	var p lib.Task
 
-	if err := row.Scan(&p.ID, &p.ProbID, &p.Expr, &p.Ans, &p.Solving, &p.Last); err != nil {
+	if err := row.Scan(&p.ID, &p.ProbID, &p.Link1, &p.Link2, &p.Arg1, &p.Arg2, &p.Operation, &p.Operation_time, &p.Ans, &p.Status); err != nil {
 		return lib.Task{}, err
 	}
 	return p, nil
@@ -227,7 +230,7 @@ func GetTask(id int64) (lib.Task, error) {
 
 // Возращает первое нерешённое выражение
 func GetNsolEx() (lib.Expr, error) {
-	db, err := sql.Open("sqlite3", "./expressions.db")
+	db, err := sql.Open("sqlite3", "./calc.db")
 
 	if err != nil {
 		return lib.Expr{}, err
@@ -236,17 +239,33 @@ func GetNsolEx() (lib.Expr, error) {
 
 	row := db.QueryRow("SELECT * FROM expressions WHERE solving = 0")
 
-	err = row.Scan()
-	if err != nil {
+	var p lib.Expr
+	if err := row.Scan(&p.ID, &p.Oper, &p.LastTask, &p.Ans, &p.Status); err != nil {
 		if err != sql.ErrNoRows {
 			return lib.Expr{}, err
 		}
 		return lib.Expr{}, errors.New("no expressions")
 	}
+	return p, nil
+}
 
-	var p lib.Expr
-	if err := row.Scan(&p.ID, &p.ProbID, &p.Expr, &p.Ans, &p.Solving, &p.Last); err != nil {
-		return lib.Expr{}, err
+// Возращает первую нерешённую задачу выражения
+func GetNsolTs(id int) (lib.Task, error) {
+	db, err := sql.Open("sqlite3", "./calc.db")
+
+	if err != nil {
+		return lib.Task{}, err
+	}
+	defer db.Close()
+
+	row := db.QueryRow("SELECT * FROM expressions WHERE status = 0 AND link1 = 0 AND link2 = 0")
+
+	var p lib.Task
+	if err := row.Scan(&p.ID, &p.ProbID, &p.Link1, &p.Link2, &p.Arg1, &p.Arg2, &p.Operation, &p.Operation_time, &p.Ans, &p.Status); err != nil {
+		if err != sql.ErrNoRows {
+			return lib.Task{}, err
+		}
+		return lib.Task{}, errors.New("no expressions")
 	}
 	return p, nil
 }

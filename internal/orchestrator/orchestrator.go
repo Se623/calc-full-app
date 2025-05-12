@@ -29,7 +29,7 @@ func Displayer(w http.ResponseWriter, r *http.Request) {
 	} else {
 		var exprPack []byte
 		var err error
-		idInt, err := strconv.ParseInt(id, 10, 64)
+		idInt, err := strconv.Atoi(id)
 		if err != nil {
 			http.Error(w, "Error: ID not found", http.StatusNotFound)
 			return
@@ -64,7 +64,6 @@ func Displayer(w http.ResponseWriter, r *http.Request) {
 func Spliter(w http.ResponseWriter, r *http.Request) {
 	pr := []string{}
 	res := [][]string{}
-	opers := []lib.Task{}
 	linkctr := 0
 
 	rpnstack := lib.Newstack()
@@ -107,7 +106,7 @@ func Spliter(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var num int64
+	var num int
 
 	for _, v := range res {
 		v[0], v[1] = v[1], v[0]
@@ -142,11 +141,11 @@ func Spliter(w http.ResponseWriter, r *http.Request) {
 			b, _ = strconv.ParseFloat(v[1], 64)
 		}
 
-		opers = append(opers, lib.Task{ID: num, ProbID: 0, Links: links, Arg1: a, Arg2: b, Operation: v[2], Operation_time: optime, Ans: 0, Status: 0})
+		_, _ = database.AddTask(lib.Task{ID: num, ProbID: 0, Link1: links[0], Link2: links[1], Arg1: a, Arg2: b, Operation: v[2], Operation_time: optime, Ans: 0, Status: 0})
 		num++
 	}
 
-	exprid, err := database.AddExpr(lib.Expr{ID: 0, Oper: resp.Expression, Tasks: opers, Ans: 0, Status: 0})
+	exprid, err := database.AddExpr(lib.Expr{ID: 0, Oper: resp.Expression, LastTask: num, Ans: 0, Status: 0})
 	if err != nil {
 		http.Error(w, "Error: unknown", http.StatusInternalServerError)
 		return

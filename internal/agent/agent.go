@@ -2,11 +2,13 @@ package agent
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/Se623/calc-full-app/internal/database"
 	"github.com/Se623/calc-full-app/internal/lib"
 )
 
@@ -28,37 +30,39 @@ func Agent(id int) {
 		case resTask := <-calcsout:
 			if resTask.Status == 2 {
 				lib.Sugar.Infof("Agent %d: Got task %d", id, resTask.ID)
-				for i, v := range exprslot.Tasks {
-					if v.ID == resTask.ID {
-						exprslot.Tasks[i] = resTask
-						for i2, v2 := range exprslot.Tasks {
-							if v2.Links[0] == exprslot.Tasks[i].ID {
-								exprslot.Tasks[i2].Arg1 = exprslot.Tasks[i].Ans
-								exprslot.Tasks[i2].Links[0] = -1
-								lib.Sugar.Infof("Agent %d: Changed 1st link in task %d to number", id, v2.ID)
-								break
-							}
-							if v2.Links[1] == exprslot.Tasks[i].ID {
-								exprslot.Tasks[i2].Arg2 = exprslot.Tasks[i].Ans
-								exprslot.Tasks[i2].Links[1] = -1
-								lib.Sugar.Infof("Agent %d: Changed 2nd link in task %d to number", id, v2.ID)
-								break
-							}
-						}
-						if i == len(exprslot.Tasks)-1 {
-							lib.Sugar.Infof("Agent %d: Task %d - last task, sending to orchestartor", id, exprslot.Tasks[i].ID)
-							data, _ := json.Marshal(lib.TaskInc{ID: exprslot.ID, Result: exprslot.Tasks[i].Ans})
-							r := bytes.NewReader(data)
-							_, err := http.Post("http://localhost:8080/internal/task", "application/json", r)
-							if err != nil {
-								fmt.Println(err)
-							}
-							busy = false
-						}
-						exprslot.Tasks = append(exprslot.Tasks[:i], exprslot.Tasks[i+1:]...)
-						continue
-					}
+
+				_ = database.UpdTask(resTask.ID, resTask.Status, resTask.Ans)
+
+				if resTask.Link1 != -1 {
+					cand1, _ := database.GetTask(exprslot.ID, resTask.Link1)
+					cand1.Arg1 = resTask.Ans
+					cand1.Link1 = -1
+					_, _ = database.AddTask(cand1)
+					lib.Sugar.Infof("Agent %d: Changed 1st link in task %d to number", id, cand1.ID)
+					break
 				}
+				if resTask.Link2 != -1 {
+					cand2, _ := database.GetTask(exprslot.ID, resTask.Link2)
+					cand2.Arg2 = resTask.Ans
+					cand2.Link2 = -1
+					_, _ = database.AddTask(cand2)
+					lib.Sugar.Infof("Agent %d: Changed 2nd link in task %d to number", id, cand2.ID)
+					break
+				}
+
+				if resTask.ID == exprslot.LastTask {
+					lib.Sugar.Infof("Agent %d: Task %d - last task, sending to orchestartor", id, resTask.ID)
+					data, _ := json.Marshal(lib.TaskInc{ID: exprslot.ID, Result: resTask.Ans})
+					r := bytes.NewReader(data)
+					_, err := http.Post("http://localhost:8080/internal/task", "application/json", r)
+					if err != nil {
+						fmt.Println(err)
+					}
+					busy = false
+				}
+				database.DelTask(resTask.ID)
+				continue
+
 			}
 		case <-ticker.C:
 			if !busy {
@@ -85,12 +89,13 @@ func Agent(id int) {
 			}
 		default:
 			if busy {
-				for i, v := range exprslot.Tasks {
-					if v.Status == 0 && v.Links[0] == -1 && v.Links[1] == -1 {
-						lib.Sugar.Infof("Agent %d: Got undestributed task %d, sending to calculators", id, v.ID)
-						calcsin <- exprslot.Tasks[i]
-						exprslot.Tasks[i].Status = 1
-					}
+				cand, err := database.GetNsolTs(exprslot.ID)
+				if err == sql.ErrNoRows {
+
+				} else {
+					lib.Sugar.Infof("Agent %d: Got undestributed task %d, sending to calculators", id, cand.ID)
+					calcsin <- cand
+					database.UpdTask(cand.ID, 1, -1)
 				}
 			}
 		}
