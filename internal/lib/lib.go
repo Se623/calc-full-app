@@ -30,7 +30,8 @@ type Raw struct {
 
 // Выражение
 type Expr struct {
-	ID       int     `json:"id"` // Номер выражения
+	ID       int     `json:"id"`     // Номер выражения
+	UserID   int     `json:"userid"` // Номер пользователя выражения
 	Oper     string  // Само выражение
 	LastTask int     `json:"lasttask"` // Номер последней задачи
 	Ans      float64 // Ответ

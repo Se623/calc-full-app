@@ -33,21 +33,22 @@ func Agent(id int) {
 
 				_ = database.UpdTask(resTask.ID, resTask.Status, resTask.Ans)
 
-				if resTask.Link1 != -1 {
-					cand1, _ := database.GetTask(exprslot.ID, resTask.Link1)
+				cand1, err := database.GetTaskLk(exprslot.ID, 1, resTask.ID)
+				fmt.Println(err, resTask.ID, exprslot.ID)
+				if err == nil {
+					fmt.Println(cand1)
 					cand1.Arg1 = resTask.Ans
 					cand1.Link1 = -1
 					_, _ = database.AddTask(cand1)
 					lib.Sugar.Infof("Agent %d: Changed 1st link in task %d to number", id, cand1.ID)
-					break
 				}
-				if resTask.Link2 != -1 {
-					cand2, _ := database.GetTask(exprslot.ID, resTask.Link2)
+				cand2, err := database.GetTaskLk(exprslot.ID, 2, resTask.ID)
+				fmt.Println(err)
+				if err == nil {
 					cand2.Arg2 = resTask.Ans
 					cand2.Link2 = -1
 					_, _ = database.AddTask(cand2)
 					lib.Sugar.Infof("Agent %d: Changed 2nd link in task %d to number", id, cand2.ID)
-					break
 				}
 
 				if resTask.ID == exprslot.LastTask {
@@ -90,8 +91,11 @@ func Agent(id int) {
 		default:
 			if busy {
 				cand, err := database.GetNsolTs(exprslot.ID)
-				if err == sql.ErrNoRows {
-
+				if err != nil {
+					if err != sql.ErrNoRows {
+						lib.Sugar.Errorf("Agent %d: Got an error during tasks search: %s", id, err.Error())
+					}
+					break
 				} else {
 					lib.Sugar.Infof("Agent %d: Got undestributed task %d, sending to calculators", id, cand.ID)
 					calcsin <- cand

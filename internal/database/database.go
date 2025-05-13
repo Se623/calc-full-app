@@ -21,23 +21,23 @@ func Init() error {
 	createTableSQL := `
 	CREATE TABLE IF NOT EXISTS expressions (
 		id				INTEGER PRIMARY KEY AUTOINCREMENT,
-		userid			INTEGER
+		userid			INTEGER,
 		oper  			VARCHAR(255),
-		tasksid			VARCHAR(255),
+		lasttask		INTEGER,
 		ans				REAL,
 		status			TINYINT
 	  );
 	CREATE TABLE IF NOT EXISTS tasks (
 		id        		INTEGER PRIMARY KEY AUTOINCREMENT,
-		probid			INT NOT NULL,
-		link1 			INT,
-		link2			INT,
-		Arg1          	REAL,
-		Arg2           	REAL,
-		Operation      	VARCHAR(255),
-		Operation_time 	INT, 
-		Ans            	REAL,
-		Status         	TINYINT  
+		probid			INTEGER NOT NULL,
+		link1 			INTEGER,
+		link2			INTEGER,
+		arg1          	REAL,
+		arg2           	REAL,
+		operation      	VARCHAR(255),
+		operation_time 	INTEGER, 
+		ans            	REAL,
+		status         	TINYINT  
 	  );
 	CREATE TABLE IF NOT EXISTS users (
 		id        		INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,7 +62,7 @@ func AddExpr(expr lib.Expr) (int, error) {
 
 	defer db.Close()
 
-	result, err := db.Exec("INSERT INTO expressions (oper, tasksid) VALUES (?, ?);", expr.Oper, "a s d")
+	result, err := db.Exec("INSERT INTO expressions (userid, oper, lasttask, ans, status) VALUES (?, ?, ?, ?, ?);", expr.UserID, expr.Oper, expr.LastTask, expr.Ans, expr.Status)
 	if err != nil {
 		return 0, err
 	}
@@ -82,14 +82,14 @@ func AddTask(task lib.Task) (int, error) {
 
 	defer db.Close()
 
-	err = db.QueryRow("SELECT id FROM operation WHERE id = $1;", task.ID).Scan(&task.ID)
+	err = db.QueryRow("SELECT id FROM tasks WHERE id = $1;", task.ID).Scan(&task.ID)
 
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return 0, err
 		}
 
-		result, err := db.Exec("INSERT INTO expressions (probid, link1, link2, Arg1, Arg2, Operation, Operation_time, Status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", task.ProbID, task.Link1, task.Link2, task.Arg1, task.Arg2, task.Operation, task.Operation_time, task.Status)
+		result, err := db.Exec("INSERT INTO tasks (probid, link1, link2, arg1, arg2, operation, operation_time, ans, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", task.ProbID, task.Link1, task.Link2, task.Arg1, task.Arg2, task.Operation, task.Operation_time, task.Ans, task.Status)
 
 		if err != nil {
 			return 0, err
@@ -104,7 +104,7 @@ func AddTask(task lib.Task) (int, error) {
 		return int(id), nil
 	}
 
-	_, err = db.Exec("UPDATE operation SET probid = ?, link1 = ?, link2 = ?, Arg1 = ?, Arg2 = ?, Operation = ?, Operation_time = ?, Status = ?", task.ProbID, task.Link1, task.Link2, task.Arg1, task.Arg2, task.Operation, task.Operation_time, task.Status)
+	_, err = db.Exec("UPDATE tasks SET probid = ?, link1 = ?, link2 = ?, arg1 = ?, arg2 = ?, operation = ?, operation_time = ?, ans = ?, status = ? WHERE id = ?", task.ProbID, task.Link1, task.Link2, task.Arg1, task.Arg2, task.Operation, task.Operation_time, task.Ans, task.Status, task.ID)
 
 	if err != nil {
 		return 0, err
@@ -136,7 +136,22 @@ func UpdTask(id int, status int8, ans float64) error {
 	}
 	defer db.Close()
 
-	_, err = db.Exec("UPDATE task SET ans = ?, status = ? WHERE id = ?;", ans, status, id)
+	_, err = db.Exec("UPDATE tasks SET ans = ?, status = ? WHERE id = ?;", ans, status, id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Обновляет ответ и статус задачи
+func UpdTaskID(id int, probid int) error {
+	db, err := sql.Open("sqlite3", "./calc.db")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.Exec("UPDATE tasks SET probid = ? WHERE id = ?;", probid, id)
 	if err != nil {
 		return err
 	}
@@ -168,7 +183,7 @@ func GetAllExpr() (lib.DspArr, error) {
 
 	var exprs lib.DspArr
 
-	rows, err := db.Query("SELECT id, status, ans FROM problem")
+	rows, err := db.Query("SELECT id, status, ans FROM expressions")
 	if err != nil {
 		return lib.DspArr{}, err
 	}
@@ -204,13 +219,13 @@ func GetExpr(id int) (lib.Expr, error) {
 
 	var p lib.Expr
 
-	if err := row.Scan(&p.ID, &p.Oper, &p.LastTask, &p.Ans, &p.Status); err != nil {
+	if err := row.Scan(&p.ID, &p.UserID, &p.Oper, &p.LastTask, &p.Ans, &p.Status); err != nil {
 		return lib.Expr{}, err
 	}
 	return p, nil
 }
 
-// Достаёт операцию по ID и ссылкам
+// Достаёт операцию по ID
 func GetTask(exprid int, id int) (lib.Task, error) {
 	db, err := sql.Open("sqlite3", "./calc.db")
 	if err != nil {
@@ -218,7 +233,33 @@ func GetTask(exprid int, id int) (lib.Task, error) {
 	}
 	defer db.Close()
 
-	row := db.QueryRow("SELECT * FROM tasks WHERE ID = ?", id)
+	row := db.QueryRow("SELECT * FROM tasks WHERE ID = ? AND probid = ?", id, exprid)
+
+	var p lib.Task
+
+	if err := row.Scan(&p.ID, &p.ProbID, &p.Link1, &p.Link2, &p.Arg1, &p.Arg2, &p.Operation, &p.Operation_time, &p.Ans, &p.Status); err != nil {
+		return lib.Task{}, err
+	}
+	return p, nil
+}
+
+// Достаёт операцию по ссылкам
+func GetTaskLk(exprid int, lknm int, link int) (lib.Task, error) {
+	db, err := sql.Open("sqlite3", "./calc.db")
+	if err != nil {
+		return lib.Task{}, err
+	}
+	defer db.Close()
+
+	var row *sql.Row
+
+	if lknm == 1 {
+		row = db.QueryRow("SELECT * FROM tasks WHERE probid = ? AND link1 = ?", exprid, link)
+	} else if lknm == 2 {
+		row = db.QueryRow("SELECT * FROM tasks WHERE probid = ? AND link2 = ?", exprid, link)
+	} else {
+		return lib.Task{}, errors.New("unknown link")
+	}
 
 	var p lib.Task
 
@@ -237,10 +278,10 @@ func GetNsolEx() (lib.Expr, error) {
 	}
 	defer db.Close()
 
-	row := db.QueryRow("SELECT * FROM expressions WHERE solving = 0")
+	row := db.QueryRow("SELECT * FROM expressions WHERE status = 0")
 
 	var p lib.Expr
-	if err := row.Scan(&p.ID, &p.Oper, &p.LastTask, &p.Ans, &p.Status); err != nil {
+	if err := row.Scan(&p.ID, &p.UserID, &p.Oper, &p.LastTask, &p.Ans, &p.Status); err != nil {
 		if err != sql.ErrNoRows {
 			return lib.Expr{}, err
 		}
@@ -258,14 +299,11 @@ func GetNsolTs(id int) (lib.Task, error) {
 	}
 	defer db.Close()
 
-	row := db.QueryRow("SELECT * FROM expressions WHERE status = 0 AND link1 = 0 AND link2 = 0")
+	row := db.QueryRow("SELECT * FROM tasks WHERE status = 0 AND link1 = -1 AND link2 = -1")
 
 	var p lib.Task
 	if err := row.Scan(&p.ID, &p.ProbID, &p.Link1, &p.Link2, &p.Arg1, &p.Arg2, &p.Operation, &p.Operation_time, &p.Ans, &p.Status); err != nil {
-		if err != sql.ErrNoRows {
-			return lib.Task{}, err
-		}
-		return lib.Task{}, errors.New("no expressions")
+		return lib.Task{}, err
 	}
 	return p, nil
 }

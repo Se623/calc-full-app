@@ -16,12 +16,12 @@ func Displayer(w http.ResponseWriter, r *http.Request) {
 	if id == "" {
 		exprArr, err := database.GetAllExpr()
 		if err != nil {
-			http.Error(w, "Error: Something invalid", http.StatusInternalServerError)
+			http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		exprArrPack, err := json.Marshal(exprArr)
 		if err != nil {
-			http.Error(w, "Error: Something invalid", http.StatusInternalServerError)
+			http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		fmt.Fprint(w, string(exprArrPack))
@@ -40,7 +40,7 @@ func Displayer(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Error: Expression not found", http.StatusNotFound)
 				return
 			}
-			http.Error(w, "Error: Something invalid", http.StatusInternalServerError)
+			http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -53,7 +53,7 @@ func Displayer(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err != nil {
-			http.Error(w, "Error: Something invalid", http.StatusInternalServerError)
+			http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -106,7 +106,7 @@ func Spliter(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var num int
+	nums := []int{}
 
 	for _, v := range res {
 		v[0], v[1] = v[1], v[0]
@@ -141,16 +141,32 @@ func Spliter(w http.ResponseWriter, r *http.Request) {
 			b, _ = strconv.ParseFloat(v[1], 64)
 		}
 
-		_, _ = database.AddTask(lib.Task{ID: num, ProbID: 0, Link1: links[0], Link2: links[1], Arg1: a, Arg2: b, Operation: v[2], Operation_time: optime, Ans: 0, Status: 0})
-		num++
+		if len(nums) != 0 {
+			if links[0] != -1 {
+				links[0] = links[0] + nums[0]
+			}
+			if links[1] != -1 {
+				links[1] = links[1] + nums[0]
+			}
+		}
+
+		taskid, err := database.AddTask(lib.Task{ID: -1, ProbID: 0, Link1: links[0], Link2: links[1], Arg1: a, Arg2: b, Operation: v[2], Operation_time: optime, Ans: 0, Status: 0})
+		if err != nil {
+			lib.Sugar.Errorf("Orchestrator: Got error when spliting: %s", err.Error())
+		}
+		nums = append(nums, taskid)
+		fmt.Println(nums)
 	}
 
-	exprid, err := database.AddExpr(lib.Expr{ID: 0, Oper: resp.Expression, LastTask: num, Ans: 0, Status: 0})
+	exprid, err := database.AddExpr(lib.Expr{ID: 0, UserID: 0, Oper: resp.Expression, LastTask: nums[len(nums)-1], Ans: 0, Status: 0})
 	if err != nil {
-		http.Error(w, "Error: unknown", http.StatusInternalServerError)
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
+	for _, v := range nums {
+		database.UpdTaskID(v, exprid)
+	}
 	fmt.Fprintf(w, `{"id": "%d"}`, exprid)
 }
 
@@ -162,12 +178,14 @@ func Distributor(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Error: No expressions", http.StatusNotFound)
 				return
 			}
-			http.Error(w, "Error: Something invalid", http.StatusInternalServerError)
+			http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+			lib.Sugar.Errorf("Orchestrator: Got error when distributing: %s", err.Error())
 			return
 		}
 		exprPack, err := json.Marshal(cand)
 		if err != nil {
-			http.Error(w, "Error: Something invalid", http.StatusInternalServerError)
+			http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+			lib.Sugar.Errorf("Orchestrator: Got error when distributing: %s", err.Error())
 			return
 		}
 
@@ -181,14 +199,14 @@ func Distributor(w http.ResponseWriter, r *http.Request) {
 		var resp lib.TaskInc
 		err := decoder.Decode(&resp)
 		if err != nil {
-			lib.Sugar.Errorf("Orchestrator: Error")
+			lib.Sugar.Errorf("Orchestrator: Error: %s", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		lib.Sugar.Infof("Orchestrator: Got expression %d", resp.ID)
 
 		cand, err := database.GetExpr(resp.ID)
 		if err != nil {
-			lib.Sugar.Errorf("Orchestrator: Error")
+			lib.Sugar.Errorf("Orchestrator: Error: %s", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		lib.Sugar.Infof("Orchestrator: Replacing expression %d in database", resp.ID)
