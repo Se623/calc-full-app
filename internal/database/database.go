@@ -3,14 +3,21 @@ package database
 import (
 	"database/sql"
 	"errors"
+	"sync"
 
 	lib "github.com/Se623/calc-full-app/internal/lib"
 	_ "github.com/mattn/go-sqlite3"
 )
 
+type DBmutex struct {
+	mutex sync.Mutex
+}
+
+var DBM DBmutex
+
 // Создаёт базу данных (Обновляет если существует)
 func Init() error {
-
+	DBM = DBmutex{}
 	db, err := sql.Open("sqlite3", "./calc.db")
 
 	if err != nil {
@@ -25,7 +32,8 @@ func Init() error {
 		oper  			VARCHAR(255),
 		lasttask		INTEGER,
 		ans				REAL,
-		status			TINYINT
+		status			TINYINT,
+		agent			INTEGER
 	  );
 	CREATE TABLE IF NOT EXISTS tasks (
 		id        		INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,11 +57,14 @@ func Init() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 // Добавляет выражение в базу данных (Если это выражение уже существует - функция обновляет его)
-func AddExpr(expr lib.Expr) (int, error) {
+func (d *DBmutex) AddExpr(expr lib.Expr) (int, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 	db, err := sql.Open("sqlite3", "./calc.db")
 
 	if err != nil {
@@ -62,7 +73,7 @@ func AddExpr(expr lib.Expr) (int, error) {
 
 	defer db.Close()
 
-	result, err := db.Exec("INSERT INTO expressions (userid, oper, lasttask, ans, status) VALUES (?, ?, ?, ?, ?);", expr.UserID, expr.Oper, expr.LastTask, expr.Ans, expr.Status)
+	result, err := db.Exec("INSERT INTO expressions (userid, oper, lasttask, ans, status, agent) VALUES (?, ?, ?, ?, ?, ?);", expr.UserID, expr.Oper, expr.LastTask, expr.Ans, expr.Status, expr.Agent)
 	if err != nil {
 		return 0, err
 	}
@@ -73,7 +84,9 @@ func AddExpr(expr lib.Expr) (int, error) {
 	return int(id), nil
 }
 
-func AddTask(task lib.Task) (int, error) {
+func (d *DBmutex) AddTask(task lib.Task) (int, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 	db, err := sql.Open("sqlite3", "./calc.db")
 
 	if err != nil {
@@ -113,15 +126,17 @@ func AddTask(task lib.Task) (int, error) {
 	return -1, nil
 }
 
-// Обновляет ответ и статус выражения
-func UpdExpr(id int, status int8, ans float64) error {
+// Обновляет ответ, статус и агента выражения
+func (d *DBmutex) UpdExpr(id int, status int8, agent int, ans float64) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 	db, err := sql.Open("sqlite3", "./calc.db")
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	_, err = db.Exec("UPDATE expressions SET ans = ?, status = ? WHERE id = ?;", ans, status, id)
+	_, err = db.Exec("UPDATE expressions SET ans = ?, status = ?, agent = ? WHERE id = ?;", ans, status, agent, id)
 	if err != nil {
 		return err
 	}
@@ -129,7 +144,9 @@ func UpdExpr(id int, status int8, ans float64) error {
 }
 
 // Обновляет ответ и статус задачи
-func UpdTask(id int, status int8, ans float64) error {
+func (d *DBmutex) UpdTask(id int, status int8, ans float64) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 	db, err := sql.Open("sqlite3", "./calc.db")
 	if err != nil {
 		return err
@@ -144,7 +161,26 @@ func UpdTask(id int, status int8, ans float64) error {
 }
 
 // Обновляет ответ и статус задачи
-func UpdTaskID(id int, probid int) error {
+func (d *DBmutex) UpdAllTaskSt(probid int) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	db, err := sql.Open("sqlite3", "./calc.db")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.Exec("UPDATE tasks SET status = 0 WHERE probid = ?;", probid)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Обновляет ответ и статус задачи
+func (d *DBmutex) UpdTaskID(id int, probid int) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 	db, err := sql.Open("sqlite3", "./calc.db")
 	if err != nil {
 		return err
@@ -159,14 +195,16 @@ func UpdTaskID(id int, probid int) error {
 }
 
 // Удаляет операцию из базы данных
-func DelTask(id int) error {
+func (d *DBmutex) DelTask(id int) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 	db, err := sql.Open("sqlite3", "./calc.db")
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	_, err = db.Exec("DELETE FROM operation WHERE id = ?;", id)
+	_, err = db.Exec("DELETE FROM tasks WHERE id = ?;", id)
 	if err != nil {
 		return err
 	}
@@ -174,7 +212,9 @@ func DelTask(id int) error {
 }
 
 // Возращает массив из выражений
-func GetAllExpr() (lib.DspArr, error) {
+func (d *DBmutex) GetAllExpr() (lib.DspArr, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 	db, err := sql.Open("sqlite3", "./calc.db")
 	if err != nil {
 		return lib.DspArr{}, err
@@ -208,7 +248,9 @@ func GetAllExpr() (lib.DspArr, error) {
 }
 
 // Достаёт выражение по ID
-func GetExpr(id int) (lib.Expr, error) {
+func (d *DBmutex) GetExpr(id int) (lib.Expr, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 	db, err := sql.Open("sqlite3", "./calc.db")
 	if err != nil {
 		return lib.Expr{}, err
@@ -219,14 +261,36 @@ func GetExpr(id int) (lib.Expr, error) {
 
 	var p lib.Expr
 
-	if err := row.Scan(&p.ID, &p.UserID, &p.Oper, &p.LastTask, &p.Ans, &p.Status); err != nil {
+	if err := row.Scan(&p.ID, &p.UserID, &p.Oper, &p.LastTask, &p.Ans, &p.Status, &p.Agent); err != nil {
+		return lib.Expr{}, err
+	}
+	return p, nil
+}
+
+// Достаёт выражение по агенту
+func (d *DBmutex) GetExprAg(agent int) (lib.Expr, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	db, err := sql.Open("sqlite3", "./calc.db")
+	if err != nil {
+		return lib.Expr{}, err
+	}
+	defer db.Close()
+
+	row := db.QueryRow("SELECT * FROM expressions WHERE agent = ?", agent)
+
+	var p lib.Expr
+
+	if err := row.Scan(&p.ID, &p.UserID, &p.Oper, &p.LastTask, &p.Ans, &p.Status, &p.Agent); err != nil {
 		return lib.Expr{}, err
 	}
 	return p, nil
 }
 
 // Достаёт операцию по ID
-func GetTask(exprid int, id int) (lib.Task, error) {
+func (d *DBmutex) GetTask(exprid int, id int) (lib.Task, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 	db, err := sql.Open("sqlite3", "./calc.db")
 	if err != nil {
 		return lib.Task{}, err
@@ -244,7 +308,9 @@ func GetTask(exprid int, id int) (lib.Task, error) {
 }
 
 // Достаёт операцию по ссылкам
-func GetTaskLk(exprid int, lknm int, link int) (lib.Task, error) {
+func (d *DBmutex) GetTaskLk(exprid int, lknm int, link int) (lib.Task, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 	db, err := sql.Open("sqlite3", "./calc.db")
 	if err != nil {
 		return lib.Task{}, err
@@ -270,7 +336,9 @@ func GetTaskLk(exprid int, lknm int, link int) (lib.Task, error) {
 }
 
 // Возращает первое нерешённое выражение
-func GetNsolEx() (lib.Expr, error) {
+func (d *DBmutex) GetNsolEx() (lib.Expr, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 	db, err := sql.Open("sqlite3", "./calc.db")
 
 	if err != nil {
@@ -278,10 +346,10 @@ func GetNsolEx() (lib.Expr, error) {
 	}
 	defer db.Close()
 
-	row := db.QueryRow("SELECT * FROM expressions WHERE status = 0")
+	row := db.QueryRow("SELECT * FROM expressions WHERE status = 0 AND agent = -1")
 
 	var p lib.Expr
-	if err := row.Scan(&p.ID, &p.UserID, &p.Oper, &p.LastTask, &p.Ans, &p.Status); err != nil {
+	if err := row.Scan(&p.ID, &p.UserID, &p.Oper, &p.LastTask, &p.Ans, &p.Status, &p.Agent); err != nil {
 		if err != sql.ErrNoRows {
 			return lib.Expr{}, err
 		}
@@ -291,7 +359,9 @@ func GetNsolEx() (lib.Expr, error) {
 }
 
 // Возращает первую нерешённую задачу выражения
-func GetNsolTs(id int) (lib.Task, error) {
+func (d *DBmutex) GetNsolTs(id int) (lib.Task, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 	db, err := sql.Open("sqlite3", "./calc.db")
 
 	if err != nil {

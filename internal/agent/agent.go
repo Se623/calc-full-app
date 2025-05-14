@@ -21,8 +21,17 @@ func Agent(id int) {
 	exprslot := lib.Expr{}
 	busy := false
 
+	cand, err := database.DBM.GetExprAg(id)
+
+	if err == nil {
+		exprslot = cand
+		busy = true
+		lib.Sugar.Infof("Agent %d: Recovered task %d", id, cand.ID)
+		database.DBM.UpdAllTaskSt(cand.ID)
+	}
+
 	for i := 0; i < lib.COMPUTING_POWER; i++ {
-		go calculator(calcsin, calcsout, i+1, id)
+		go Calculator(calcsin, calcsout, i+1, id)
 	}
 
 	for {
@@ -31,23 +40,22 @@ func Agent(id int) {
 			if resTask.Status == 2 {
 				lib.Sugar.Infof("Agent %d: Got task %d", id, resTask.ID)
 
-				_ = database.UpdTask(resTask.ID, resTask.Status, resTask.Ans)
-
-				cand1, err := database.GetTaskLk(exprslot.ID, 1, resTask.ID)
+				err := database.DBM.UpdTask(resTask.ID, resTask.Status, resTask.Ans)
+				fmt.Println(err)
+				cand1, err := database.DBM.GetTaskLk(exprslot.ID, 1, resTask.ID)
 				fmt.Println(err, resTask.ID, exprslot.ID)
 				if err == nil {
 					fmt.Println(cand1)
 					cand1.Arg1 = resTask.Ans
 					cand1.Link1 = -1
-					_, _ = database.AddTask(cand1)
+					_, _ = database.DBM.AddTask(cand1)
 					lib.Sugar.Infof("Agent %d: Changed 1st link in task %d to number", id, cand1.ID)
 				}
-				cand2, err := database.GetTaskLk(exprslot.ID, 2, resTask.ID)
-				fmt.Println(err)
+				cand2, err := database.DBM.GetTaskLk(exprslot.ID, 2, resTask.ID)
 				if err == nil {
 					cand2.Arg2 = resTask.Ans
 					cand2.Link2 = -1
-					_, _ = database.AddTask(cand2)
+					_, _ = database.DBM.AddTask(cand2)
 					lib.Sugar.Infof("Agent %d: Changed 2nd link in task %d to number", id, cand2.ID)
 				}
 
@@ -61,7 +69,7 @@ func Agent(id int) {
 					}
 					busy = false
 				}
-				database.DelTask(resTask.ID)
+				database.DBM.DelTask(resTask.ID)
 				continue
 
 			}
@@ -81,6 +89,12 @@ func Agent(id int) {
 						lib.Sugar.Errorf("Agent %d: Something went wrong, aborting contact. Error: %s", id, err.Error())
 						continue
 					}
+					cand, _ := database.DBM.GetExpr(expr.ID)
+					if cand.Agent != -1 {
+						lib.Sugar.Errorf("Agent %d: Expression blocked", id)
+						continue
+					}
+					database.DBM.UpdExpr(expr.ID, 1, id, 0)
 					lib.Sugar.Infof("Agent %d: Got expression %d", id, expr.ID)
 					exprslot = expr
 					busy = true
@@ -90,7 +104,7 @@ func Agent(id int) {
 			}
 		default:
 			if busy {
-				cand, err := database.GetNsolTs(exprslot.ID)
+				cand, err := database.DBM.GetNsolTs(exprslot.ID)
 				if err != nil {
 					if err != sql.ErrNoRows {
 						lib.Sugar.Errorf("Agent %d: Got an error during tasks search: %s", id, err.Error())
@@ -99,14 +113,14 @@ func Agent(id int) {
 				} else {
 					lib.Sugar.Infof("Agent %d: Got undestributed task %d, sending to calculators", id, cand.ID)
 					calcsin <- cand
-					database.UpdTask(cand.ID, 1, -1)
+					database.DBM.UpdTask(cand.ID, 1, -1)
 				}
 			}
 		}
 	}
 }
 
-func calculator(comm chan lib.Task, result chan lib.Task, id int, agid int) {
+func Calculator(comm chan lib.Task, result chan lib.Task, id int, agid int) {
 	lib.Sugar.Infof("Calc %d-%d: I am started", agid, id)
 	for task := range comm {
 		lib.Sugar.Infof("Calc %d-%d: Got task %d: %d %s %d", agid, id, task.ID, task.Arg1, task.Operation, task.Arg2)

@@ -14,7 +14,7 @@ import (
 func Displayer(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
-		exprArr, err := database.GetAllExpr()
+		exprArr, err := database.DBM.GetAllExpr()
 		if err != nil {
 			http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -34,7 +34,7 @@ func Displayer(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error: ID not found", http.StatusNotFound)
 			return
 		}
-		cand, err := database.GetExpr(idInt)
+		cand, err := database.DBM.GetExpr(idInt)
 		if err != nil {
 			if err.Error() == "no expressions" {
 				http.Error(w, "Error: Expression not found", http.StatusNotFound)
@@ -150,7 +150,7 @@ func Spliter(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		taskid, err := database.AddTask(lib.Task{ID: -1, ProbID: 0, Link1: links[0], Link2: links[1], Arg1: a, Arg2: b, Operation: v[2], Operation_time: optime, Ans: 0, Status: 0})
+		taskid, err := database.DBM.AddTask(lib.Task{ID: -1, ProbID: 0, Link1: links[0], Link2: links[1], Arg1: a, Arg2: b, Operation: v[2], Operation_time: optime, Ans: 0, Status: 0})
 		if err != nil {
 			lib.Sugar.Errorf("Orchestrator: Got error when spliting: %s", err.Error())
 		}
@@ -158,21 +158,21 @@ func Spliter(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(nums)
 	}
 
-	exprid, err := database.AddExpr(lib.Expr{ID: 0, UserID: 0, Oper: resp.Expression, LastTask: nums[len(nums)-1], Ans: 0, Status: 0})
+	exprid, err := database.DBM.AddExpr(lib.Expr{ID: 0, UserID: 0, Oper: resp.Expression, LastTask: nums[len(nums)-1], Ans: 0, Status: 0, Agent: -1})
 	if err != nil {
 		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
 	for _, v := range nums {
-		database.UpdTaskID(v, exprid)
+		database.DBM.UpdTaskID(v, exprid)
 	}
 	fmt.Fprintf(w, `{"id": "%d"}`, exprid)
 }
 
 func Distributor(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		cand, err := database.GetNsolEx()
+		cand, err := database.DBM.GetNsolEx()
 		if err != nil {
 			if err.Error() == "no expressions" {
 				http.Error(w, "Error: No expressions", http.StatusNotFound)
@@ -190,8 +190,6 @@ func Distributor(w http.ResponseWriter, r *http.Request) {
 		}
 
 		fmt.Fprintf(w, string(exprPack), 123)
-
-		database.UpdExpr(cand.ID, 1, 0)
 		return
 
 	} else if r.Method == http.MethodPost {
@@ -204,12 +202,12 @@ func Distributor(w http.ResponseWriter, r *http.Request) {
 		}
 		lib.Sugar.Infof("Orchestrator: Got expression %d", resp.ID)
 
-		cand, err := database.GetExpr(resp.ID)
+		cand, err := database.DBM.GetExpr(resp.ID)
 		if err != nil {
 			lib.Sugar.Errorf("Orchestrator: Error: %s", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		lib.Sugar.Infof("Orchestrator: Replacing expression %d in database", resp.ID)
-		database.UpdExpr(cand.ID, 2, resp.Result)
+		database.DBM.UpdExpr(cand.ID, 2, -1, resp.Result)
 	}
 }

@@ -36,6 +36,7 @@ type Expr struct {
 	LastTask int     `json:"lasttask"` // Номер последней задачи
 	Ans      float64 // Ответ
 	Status   int8    // Статус действия: 0 - не решено, 1 - решается, 2 - решено.
+	Agent    int
 }
 
 // Выражение, которое отображается в API
