@@ -15,11 +15,11 @@
 
 1. Cклонировать репозиторий (Нужна программа git)
 ```bash
-git clone https://github.com/Se623/calc-base-api
+git clone https://github.com/Se623/calc-full-app
 ```
 2. Перейти в директорию программы
 ```bash
-cd ./calc-base-api
+cd ./calc-full-app
 ```
 3. Установить зависимости
 ```bash
