@@ -1,7 +1,8 @@
 package lib
 
 import (
-	"go.uber.org/zap"
+	"github.com/Se623/calc-full-app/internal/proto" // Путь к сгенерированным файлам Protobuf
+	"google.golang.org/grpc"
 )
 
 // Константы
@@ -53,14 +54,14 @@ type DspArr struct {
 
 // Задача
 type Task struct {
-	ID             int     `json:"id"` // ID
-	ProbID         int     // Номер выражения действия
-	Link1          int     `json:"link1"`
-	Link2          int     `json:"link2"`
-	Arg1           float64 `json:"arg1"`           // Первое число
-	Arg2           float64 `json:"arg2"`           // Второе число
-	Operation      string  `json:"operation"`      // Операция
-	Operation_time int     `json:"operation_time"` // Время выполнения
+	ID             int // ID
+	ProbID         int // Номер выражения действия
+	Link1          int
+	Link2          int
+	Arg1           float64 // Первое число
+	Arg2           float64 // Второе число
+	Operation      string  // Операция
+	Operation_time int     // Время выполнения
 	Ans            float64 // Ответ
 	Status         int8    // Статус действия: 0 - не решено, 1 - решается, 2 - решено.
 }
@@ -69,6 +70,28 @@ type Task struct {
 type TaskInc struct {
 	ID     int     `json:"id"`
 	Result float64 `json:"float64"`
+}
+
+type SendExprRequest struct {
+	proto.UnimplementedSendExprRequest
+}
+
+func (s *userSendExprRequest) GetExpr(ctx context.Context, req *proto.UserRequest) (*proto.UserResponse, error) {
+	cand, err := database.DBM.GetNsolEx()
+	if err != nil {
+		return nil, err
+	}
+	// Пример данных
+	user := &proto.User{
+		ID:       cand.ID,
+		UserID:   cand.UserID,
+		Oper:     cand.Oper,
+		LastTask: cand.LastTask,
+		Ans:      cand.Ans,
+		Status:   cand.Status,
+		Agent:    cand.Agent,
+	}
+	return &proto.UserResponse{User: user}, nil
 }
 
 // Стэк

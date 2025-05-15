@@ -170,44 +170,17 @@ func Spliter(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `{"id": "%d"}`, exprid)
 }
 
-func Distributor(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		cand, err := database.DBM.GetNsolEx()
-		if err != nil {
-			if err.Error() == "no expressions" {
-				http.Error(w, "Error: No expressions", http.StatusNotFound)
-				return
-			}
-			http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
-			lib.Sugar.Errorf("Orchestrator: Got error when distributing: %s", err.Error())
-			return
-		}
-		exprPack, err := json.Marshal(cand)
-		if err != nil {
-			http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
-			lib.Sugar.Errorf("Orchestrator: Got error when distributing: %s", err.Error())
-			return
-		}
+func Distributor() {
+	listener, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		lib.Sugar.Fatalf("Error launching distributor: %v", err)
+	}
 
-		fmt.Fprintf(w, string(exprPack), 123)
-		return
+	grpcServer := grpc.NewServer()
+	pb.RegisterUserServiceServer(grpcServer, &userServiceServer{})
 
-	} else if r.Method == http.MethodPost {
-		decoder := json.NewDecoder(r.Body)
-		var resp lib.TaskInc
-		err := decoder.Decode(&resp)
-		if err != nil {
-			lib.Sugar.Errorf("Orchestrator: Error: %s", err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		lib.Sugar.Infof("Orchestrator: Got expression %d", resp.ID)
-
-		cand, err := database.DBM.GetExpr(resp.ID)
-		if err != nil {
-			lib.Sugar.Errorf("Orchestrator: Error: %s", err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		lib.Sugar.Infof("Orchestrator: Replacing expression %d in database", resp.ID)
-		database.DBM.UpdExpr(cand.ID, 2, -1, resp.Result)
+	lib.Sugar.Infof("Distributer launched on :50051")
+	if err := grpcServer.Serve(listener); err != nil {
+		lib.Sugar.Fatalf("Error launching distributor: %v", err)
 	}
 }

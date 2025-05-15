@@ -75,32 +75,32 @@ func Agent(id int) {
 			}
 		case <-ticker.C:
 			if !busy {
-				//lib.Sugar.Infof("Agent %d: Trying to contact orchestrator for more expressions", id)
-				resp, err := http.Get("http://localhost:8080/internal/task")
+				conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
 				if err != nil {
-					lib.Sugar.Errorf("Agent %d: Something went wrong, aborting contact. Error: %s", id, err.Error())
+					log.Fatalf("Error: %v", err)
+				}
+				defer conn.Close()
+
+				client := pb.NewUserServiceClient(conn)
+
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+
+				req := &pb.UserRequest{}
+				expr, err := client.GetUser(ctx, req)
+				if err != nil {
+					log.Fatalf("Error: %v", err)
+				}
+
+				cand, _ := database.DBM.GetExpr(expr.ID)
+				if cand.Agent != -1 {
+					lib.Sugar.Errorf("Agent %d: Expression blocked", id)
 					continue
 				}
-				if resp.StatusCode == 200 {
-					decoder := json.NewDecoder(resp.Body)
-					var expr lib.Expr
-					err = decoder.Decode(&expr)
-					if err != nil {
-						lib.Sugar.Errorf("Agent %d: Something went wrong, aborting contact. Error: %s", id, err.Error())
-						continue
-					}
-					cand, _ := database.DBM.GetExpr(expr.ID)
-					if cand.Agent != -1 {
-						lib.Sugar.Errorf("Agent %d: Expression blocked", id)
-						continue
-					}
-					database.DBM.UpdExpr(expr.ID, 1, id, 0)
-					lib.Sugar.Infof("Agent %d: Got expression %d", id, expr.ID)
-					exprslot = expr
-					busy = true
-				} else {
-					//lib.Sugar.Infof("Agent %d: Orchestrator request unsuccessful, code: %d", id, resp.StatusCode)
-				}
+				database.DBM.UpdExpr(expr.ID, 1, id, 0)
+				lib.Sugar.Infof("Agent %d: Got expression %d", id, expr.ID)
+				exprslot = expr
+				busy = true
 			}
 		default:
 			if busy {
