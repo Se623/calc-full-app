@@ -37,7 +37,7 @@ go run ./cmd
 ### Регистрация
 Запрос:\
 Bash(Linux): `curl --location 'localhost:8080/api/v1/register' --header 'Content-Type: application/json' --data '{ "login":"asd" , "password":"asd"}'`\
-Cmd: `curl --location "localhost:8080/api/v1/register" --header "Content-Type: application/json" --data '{ \"login\":\"asd\" , \"password\":\"asd\"}'`\
+Cmd: `curl --location "localhost:8080/api/v1/register" --header "Content-Type: application/json" --data '{ \"login\":\"asd\" , \"password\":\"asd\"}"`\
 
 Ответ: `{"id": "0"}` 
 
