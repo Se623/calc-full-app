@@ -1,17 +1,16 @@
 syntax = "proto3";
 
-package orchestrator;
+package proto;
 
-option go_package = "github.com/Se623/calc-full-app/proto";
+option go_package = "../proto";
 
 service Exprs {
-    rpc SendExpr(SendExprRequest) returns (SendExprResponse);
-    rpc ReceiveExpr(ReceiveExprRequest) returns (ReceiveExprResponse);
+    rpc GetExpr(ExprRequest) returns (ExprResponse);
 }
 
-message SendExprRequest {}
+message ExprRequest {}
 
-message SendExprResponse {
+message ExprResponse {
     int64 ID = 1;       
 	int64 UserID = 2;  
 	string Oper = 3; 
@@ -20,4 +19,3 @@ message SendExprResponse {
 	int32 Status = 6;    
 	int64 Agent = 7;  
 }
-

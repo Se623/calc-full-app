@@ -19,16 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Exprs_SendExpr_FullMethodName    = "/orchestrator.Exprs/SendExpr"
-	Exprs_ReceiveExpr_FullMethodName = "/orchestrator.Exprs/ReceiveExpr"
+	Exprs_GetExpr_FullMethodName = "/proto.Exprs/GetExpr"
 )
 
 // ExprsClient is the client API for Exprs service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ExprsClient interface {
-	SendExpr(ctx context.Context, in *SendExprRequest, opts ...grpc.CallOption) (*SendExprResponse, error)
-	ReceiveExpr(ctx context.Context, in *ReceiveExprRequest, opts ...grpc.CallOption) (*ReceiveExprResponse, error)
+	GetExpr(ctx context.Context, in *ExprRequest, opts ...grpc.CallOption) (*ExprResponse, error)
 }
 
 type exprsClient struct {
@@ -39,20 +37,10 @@ func NewExprsClient(cc grpc.ClientConnInterface) ExprsClient {
 	return &exprsClient{cc}
 }
 
-func (c *exprsClient) SendExpr(ctx context.Context, in *SendExprRequest, opts ...grpc.CallOption) (*SendExprResponse, error) {
+func (c *exprsClient) GetExpr(ctx context.Context, in *ExprRequest, opts ...grpc.CallOption) (*ExprResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SendExprResponse)
-	err := c.cc.Invoke(ctx, Exprs_SendExpr_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *exprsClient) ReceiveExpr(ctx context.Context, in *ReceiveExprRequest, opts ...grpc.CallOption) (*ReceiveExprResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ReceiveExprResponse)
-	err := c.cc.Invoke(ctx, Exprs_ReceiveExpr_FullMethodName, in, out, cOpts...)
+	out := new(ExprResponse)
+	err := c.cc.Invoke(ctx, Exprs_GetExpr_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +51,7 @@ func (c *exprsClient) ReceiveExpr(ctx context.Context, in *ReceiveExprRequest, o
 // All implementations must embed UnimplementedExprsServer
 // for forward compatibility.
 type ExprsServer interface {
-	SendExpr(context.Context, *SendExprRequest) (*SendExprResponse, error)
-	ReceiveExpr(context.Context, *ReceiveExprRequest) (*ReceiveExprResponse, error)
+	GetExpr(context.Context, *ExprRequest) (*ExprResponse, error)
 	mustEmbedUnimplementedExprsServer()
 }
 
@@ -75,11 +62,8 @@ type ExprsServer interface {
 // pointer dereference when methods are called.
 type UnimplementedExprsServer struct{}
 
-func (UnimplementedExprsServer) SendExpr(context.Context, *SendExprRequest) (*SendExprResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendExpr not implemented")
-}
-func (UnimplementedExprsServer) ReceiveExpr(context.Context, *ReceiveExprRequest) (*ReceiveExprResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ReceiveExpr not implemented")
+func (UnimplementedExprsServer) GetExpr(context.Context, *ExprRequest) (*ExprResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetExpr not implemented")
 }
 func (UnimplementedExprsServer) mustEmbedUnimplementedExprsServer() {}
 func (UnimplementedExprsServer) testEmbeddedByValue()               {}
@@ -102,38 +86,20 @@ func RegisterExprsServer(s grpc.ServiceRegistrar, srv ExprsServer) {
 	s.RegisterService(&Exprs_ServiceDesc, srv)
 }
 
-func _Exprs_SendExpr_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SendExprRequest)
+func _Exprs_GetExpr_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExprRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ExprsServer).SendExpr(ctx, in)
+		return srv.(ExprsServer).GetExpr(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Exprs_SendExpr_FullMethodName,
+		FullMethod: Exprs_GetExpr_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExprsServer).SendExpr(ctx, req.(*SendExprRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Exprs_ReceiveExpr_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReceiveExprRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ExprsServer).ReceiveExpr(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Exprs_ReceiveExpr_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExprsServer).ReceiveExpr(ctx, req.(*ReceiveExprRequest))
+		return srv.(ExprsServer).GetExpr(ctx, req.(*ExprRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -142,16 +108,12 @@ func _Exprs_ReceiveExpr_Handler(srv interface{}, ctx context.Context, dec func(i
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Exprs_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "orchestrator.Exprs",
+	ServiceName: "proto.Exprs",
 	HandlerType: (*ExprsServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SendExpr",
-			Handler:    _Exprs_SendExpr_Handler,
-		},
-		{
-			MethodName: "ReceiveExpr",
-			Handler:    _Exprs_ReceiveExpr_Handler,
+			MethodName: "GetExpr",
+			Handler:    _Exprs_GetExpr_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -1,8 +1,7 @@
 package lib
 
 import (
-	"github.com/Se623/calc-full-app/internal/proto" // Путь к сгенерированным файлам Protobuf
-	"google.golang.org/grpc"
+	"go.uber.org/zap"
 )
 
 // Константы
@@ -13,6 +12,8 @@ var TIME_DIVISIONS_MS = 1000       // Время выполнения сложе
 var TIME_REQUESTING_MS = 5000      // Время выполнения сложения (мс)
 var COMPUTING_AGENTS = 2           // Кол-во агентов
 var COMPUTING_POWER = 2            // Кол-во горутин агентов
+
+var SecretKey = []byte("my_secret_key")
 
 // Логгер
 var Sugar *zap.SugaredLogger
@@ -27,6 +28,12 @@ func InitLogger() {
 // "Сырое" выражение (Инфиксное, не разделённое)
 type Raw struct {
 	Expression string `json:"expression"`
+}
+
+// Логин и пароль
+type Cred struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
 }
 
 // Выражение
@@ -64,34 +71,6 @@ type Task struct {
 	Operation_time int     // Время выполнения
 	Ans            float64 // Ответ
 	Status         int8    // Статус действия: 0 - не решено, 1 - решается, 2 - решено.
-}
-
-// Ответ на задачу по ID
-type TaskInc struct {
-	ID     int     `json:"id"`
-	Result float64 `json:"float64"`
-}
-
-type SendExprRequest struct {
-	proto.UnimplementedSendExprRequest
-}
-
-func (s *userSendExprRequest) GetExpr(ctx context.Context, req *proto.UserRequest) (*proto.UserResponse, error) {
-	cand, err := database.DBM.GetNsolEx()
-	if err != nil {
-		return nil, err
-	}
-	// Пример данных
-	user := &proto.User{
-		ID:       cand.ID,
-		UserID:   cand.UserID,
-		Oper:     cand.Oper,
-		LastTask: cand.LastTask,
-		Ans:      cand.Ans,
-		Status:   cand.Status,
-		Agent:    cand.Agent,
-	}
-	return &proto.UserResponse{User: user}, nil
 }
 
 // Стэк

@@ -21,26 +21,26 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type SendExprRequest struct {
+type ExprRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SendExprRequest) Reset() {
-	*x = SendExprRequest{}
+func (x *ExprRequest) Reset() {
+	*x = ExprRequest{}
 	mi := &file_orchestrator_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SendExprRequest) String() string {
+func (x *ExprRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SendExprRequest) ProtoMessage() {}
+func (*ExprRequest) ProtoMessage() {}
 
-func (x *SendExprRequest) ProtoReflect() protoreflect.Message {
+func (x *ExprRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_orchestrator_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -52,12 +52,12 @@ func (x *SendExprRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SendExprRequest.ProtoReflect.Descriptor instead.
-func (*SendExprRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ExprRequest.ProtoReflect.Descriptor instead.
+func (*ExprRequest) Descriptor() ([]byte, []int) {
 	return file_orchestrator_proto_rawDescGZIP(), []int{0}
 }
 
-type SendExprResponse struct {
+type ExprResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ID            int64                  `protobuf:"varint,1,opt,name=ID,proto3" json:"ID,omitempty"`
 	UserID        int64                  `protobuf:"varint,2,opt,name=UserID,proto3" json:"UserID,omitempty"`
@@ -70,20 +70,20 @@ type SendExprResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SendExprResponse) Reset() {
-	*x = SendExprResponse{}
+func (x *ExprResponse) Reset() {
+	*x = ExprResponse{}
 	mi := &file_orchestrator_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SendExprResponse) String() string {
+func (x *ExprResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SendExprResponse) ProtoMessage() {}
+func (*ExprResponse) ProtoMessage() {}
 
-func (x *SendExprResponse) ProtoReflect() protoreflect.Message {
+func (x *ExprResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_orchestrator_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -95,169 +95,77 @@ func (x *SendExprResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SendExprResponse.ProtoReflect.Descriptor instead.
-func (*SendExprResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ExprResponse.ProtoReflect.Descriptor instead.
+func (*ExprResponse) Descriptor() ([]byte, []int) {
 	return file_orchestrator_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SendExprResponse) GetID() int64 {
+func (x *ExprResponse) GetID() int64 {
 	if x != nil {
 		return x.ID
 	}
 	return 0
 }
 
-func (x *SendExprResponse) GetUserID() int64 {
+func (x *ExprResponse) GetUserID() int64 {
 	if x != nil {
 		return x.UserID
 	}
 	return 0
 }
 
-func (x *SendExprResponse) GetOper() string {
+func (x *ExprResponse) GetOper() string {
 	if x != nil {
 		return x.Oper
 	}
 	return ""
 }
 
-func (x *SendExprResponse) GetLastTask() int32 {
+func (x *ExprResponse) GetLastTask() int32 {
 	if x != nil {
 		return x.LastTask
 	}
 	return 0
 }
 
-func (x *SendExprResponse) GetAns() float64 {
+func (x *ExprResponse) GetAns() float64 {
 	if x != nil {
 		return x.Ans
 	}
 	return 0
 }
 
-func (x *SendExprResponse) GetStatus() int32 {
+func (x *ExprResponse) GetStatus() int32 {
 	if x != nil {
 		return x.Status
 	}
 	return 0
 }
 
-func (x *SendExprResponse) GetAgent() int64 {
+func (x *ExprResponse) GetAgent() int64 {
 	if x != nil {
 		return x.Agent
 	}
 	return 0
 }
 
-type ReceiveExprRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Result        float64                `protobuf:"fixed64,2,opt,name=result,proto3" json:"result,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ReceiveExprRequest) Reset() {
-	*x = ReceiveExprRequest{}
-	mi := &file_orchestrator_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ReceiveExprRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReceiveExprRequest) ProtoMessage() {}
-
-func (x *ReceiveExprRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orchestrator_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReceiveExprRequest.ProtoReflect.Descriptor instead.
-func (*ReceiveExprRequest) Descriptor() ([]byte, []int) {
-	return file_orchestrator_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *ReceiveExprRequest) GetId() int64 {
-	if x != nil {
-		return x.Id
-	}
-	return 0
-}
-
-func (x *ReceiveExprRequest) GetResult() float64 {
-	if x != nil {
-		return x.Result
-	}
-	return 0
-}
-
-type ReceiveExprResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ReceiveExprResponse) Reset() {
-	*x = ReceiveExprResponse{}
-	mi := &file_orchestrator_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ReceiveExprResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReceiveExprResponse) ProtoMessage() {}
-
-func (x *ReceiveExprResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orchestrator_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReceiveExprResponse.ProtoReflect.Descriptor instead.
-func (*ReceiveExprResponse) Descriptor() ([]byte, []int) {
-	return file_orchestrator_proto_rawDescGZIP(), []int{3}
-}
-
 var File_orchestrator_proto protoreflect.FileDescriptor
 
 const file_orchestrator_proto_rawDesc = "" +
 	"\n" +
-	"\x12orchestrator.proto\x12\forchestrator\"\x11\n" +
-	"\x0fSendExprRequest\"\xaa\x01\n" +
-	"\x10SendExprResponse\x12\x0e\n" +
+	"\x12orchestrator.proto\x12\x05proto\"\r\n" +
+	"\vExprRequest\"\xa6\x01\n" +
+	"\fExprResponse\x12\x0e\n" +
 	"\x02ID\x18\x01 \x01(\x03R\x02ID\x12\x16\n" +
 	"\x06UserID\x18\x02 \x01(\x03R\x06UserID\x12\x12\n" +
 	"\x04Oper\x18\x03 \x01(\tR\x04Oper\x12\x1a\n" +
 	"\bLastTask\x18\x04 \x01(\x05R\bLastTask\x12\x10\n" +
 	"\x03Ans\x18\x05 \x01(\x01R\x03Ans\x12\x16\n" +
 	"\x06Status\x18\x06 \x01(\x05R\x06Status\x12\x14\n" +
-	"\x05Agent\x18\a \x01(\x03R\x05Agent\"<\n" +
-	"\x12ReceiveExprRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x16\n" +
-	"\x06result\x18\x02 \x01(\x01R\x06result\"\x15\n" +
-	"\x13ReceiveExprResponse2\xa6\x01\n" +
-	"\x05Exprs\x12I\n" +
-	"\bSendExpr\x12\x1d.orchestrator.SendExprRequest\x1a\x1e.orchestrator.SendExprResponse\x12R\n" +
-	"\vReceiveExpr\x12 .orchestrator.ReceiveExprRequest\x1a!.orchestrator.ReceiveExprResponseB&Z$github.com/Se623/calc-full-app/protob\x06proto3"
+	"\x05Agent\x18\a \x01(\x03R\x05Agent2;\n" +
+	"\x05Exprs\x122\n" +
+	"\aGetExpr\x12\x12.proto.ExprRequest\x1a\x13.proto.ExprResponseB\n" +
+	"Z\b../protob\x06proto3"
 
 var (
 	file_orchestrator_proto_rawDescOnce sync.Once
@@ -271,20 +179,16 @@ func file_orchestrator_proto_rawDescGZIP() []byte {
 	return file_orchestrator_proto_rawDescData
 }
 
-var file_orchestrator_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_orchestrator_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_orchestrator_proto_goTypes = []any{
-	(*SendExprRequest)(nil),     // 0: orchestrator.SendExprRequest
-	(*SendExprResponse)(nil),    // 1: orchestrator.SendExprResponse
-	(*ReceiveExprRequest)(nil),  // 2: orchestrator.ReceiveExprRequest
-	(*ReceiveExprResponse)(nil), // 3: orchestrator.ReceiveExprResponse
+	(*ExprRequest)(nil),  // 0: proto.ExprRequest
+	(*ExprResponse)(nil), // 1: proto.ExprResponse
 }
 var file_orchestrator_proto_depIdxs = []int32{
-	0, // 0: orchestrator.Exprs.SendExpr:input_type -> orchestrator.SendExprRequest
-	2, // 1: orchestrator.Exprs.ReceiveExpr:input_type -> orchestrator.ReceiveExprRequest
-	1, // 2: orchestrator.Exprs.SendExpr:output_type -> orchestrator.SendExprResponse
-	3, // 3: orchestrator.Exprs.ReceiveExpr:output_type -> orchestrator.ReceiveExprResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	0, // 0: proto.Exprs.GetExpr:input_type -> proto.ExprRequest
+	1, // 1: proto.Exprs.GetExpr:output_type -> proto.ExprResponse
+	1, // [1:2] is the sub-list for method output_type
+	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -301,7 +205,7 @@ func file_orchestrator_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orchestrator_proto_rawDesc), len(file_orchestrator_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

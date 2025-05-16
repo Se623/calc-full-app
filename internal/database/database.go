@@ -49,6 +49,7 @@ func Init() error {
 	  );
 	CREATE TABLE IF NOT EXISTS users (
 		id        		INTEGER PRIMARY KEY AUTOINCREMENT,
+		login			VARCHAR(255),
 		password		VARCHAR(255)
 	  );
 	`
@@ -59,6 +60,49 @@ func Init() error {
 	}
 
 	return nil
+}
+
+// Возращает пользователя по паролю
+func (d *DBmutex) AddUser(user string, pass string) (int, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	db, err := sql.Open("sqlite3", "./calc.db")
+
+	if err != nil {
+		return 0, err
+	}
+
+	defer db.Close()
+
+	result, err := db.Exec("INSERT INTO users (login, password) VALUES (?, ?);", user, pass)
+	if err != nil {
+		return 0, err
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return int(id), nil
+}
+
+// Возращает пользователя по паролю
+func (d *DBmutex) CheckUser(user string, pass string) (int, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	db, err := sql.Open("sqlite3", "./calc.db")
+	if err != nil {
+		return 0, err
+	}
+	defer db.Close()
+
+	row := db.QueryRow("SELECT ID FROM users WHERE login = ? AND password = ?", user, pass)
+
+	var p int
+
+	if err := row.Scan(&p); err != nil {
+		return 0, err
+	}
+	return p, nil
 }
 
 // Добавляет выражение в базу данных (Если это выражение уже существует - функция обновляет его)
@@ -212,7 +256,7 @@ func (d *DBmutex) DelTask(id int) error {
 }
 
 // Возращает массив из выражений
-func (d *DBmutex) GetAllExpr() (lib.DspArr, error) {
+func (d *DBmutex) GetAllExpr(userid int) (lib.DspArr, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	db, err := sql.Open("sqlite3", "./calc.db")
@@ -223,7 +267,7 @@ func (d *DBmutex) GetAllExpr() (lib.DspArr, error) {
 
 	var exprs lib.DspArr
 
-	rows, err := db.Query("SELECT id, status, ans FROM expressions")
+	rows, err := db.Query("SELECT id, status, ans FROM expressions WHERE userid = ?", userid)
 	if err != nil {
 		return lib.DspArr{}, err
 	}

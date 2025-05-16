@@ -3,18 +3,22 @@ package orchestrator
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 
 	"github.com/Se623/calc-full-app/internal/database"
 	"github.com/Se623/calc-full-app/internal/lib"
 	"github.com/Se623/calc-full-app/pkg/rpn"
+	pb "github.com/Se623/calc-full-app/proto"
+	"google.golang.org/grpc"
 )
 
 func Displayer(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
+	userid := r.Context().Value("id").(int)
 	if id == "" {
-		exprArr, err := database.DBM.GetAllExpr()
+		exprArr, err := database.DBM.GetAllExpr(userid)
 		if err != nil {
 			http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -64,6 +68,8 @@ func Displayer(w http.ResponseWriter, r *http.Request) {
 func Spliter(w http.ResponseWriter, r *http.Request) {
 	pr := []string{}
 	res := [][]string{}
+	userid := r.Context().Value("id").(int)
+	fmt.Println(userid)
 	linkctr := 0
 
 	rpnstack := lib.Newstack()
@@ -155,10 +161,9 @@ func Spliter(w http.ResponseWriter, r *http.Request) {
 			lib.Sugar.Errorf("Orchestrator: Got error when spliting: %s", err.Error())
 		}
 		nums = append(nums, taskid)
-		fmt.Println(nums)
 	}
 
-	exprid, err := database.DBM.AddExpr(lib.Expr{ID: 0, UserID: 0, Oper: resp.Expression, LastTask: nums[len(nums)-1], Ans: 0, Status: 0, Agent: -1})
+	exprid, err := database.DBM.AddExpr(lib.Expr{ID: 0, UserID: userid, Oper: resp.Expression, LastTask: nums[len(nums)-1], Ans: 0, Status: 0, Agent: -1})
 	if err != nil {
 		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -177,9 +182,9 @@ func Distributor() {
 	}
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterUserServiceServer(grpcServer, &userServiceServer{})
+	pb.RegisterExprsServer(grpcServer, &pb.UnimplementedExprsServer{})
 
-	lib.Sugar.Infof("Distributer launched on :50051")
+	lib.Sugar.Infof("Distributor launched on :50051")
 	if err := grpcServer.Serve(listener); err != nil {
 		lib.Sugar.Fatalf("Error launching distributor: %v", err)
 	}

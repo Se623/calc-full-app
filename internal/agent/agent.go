@@ -1,20 +1,48 @@
 package agent
 
 import (
-	"bytes"
+	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/Se623/calc-full-app/internal/database"
 	"github.com/Se623/calc-full-app/internal/lib"
+	pb "github.com/Se623/calc-full-app/proto"
+	"google.golang.org/grpc"
 )
+
+type ExprsClient struct {
+	pb.ExprsClient
+}
+
+func (s *ExprsClient) GetExpr(ctx context.Context, req *pb.ExprRequest) (*pb.ExprResponse, error) {
+	cand, err := database.DBM.GetNsolEx()
+	if err != nil {
+		return nil, err
+	}
+	return &pb.ExprResponse{
+		ID:       int64(cand.ID),
+		UserID:   int64(cand.UserID),
+		Oper:     cand.Oper,
+		LastTask: int32(cand.LastTask),
+		Ans:      cand.Ans,
+		Status:   int32(cand.Status),
+		Agent:    int64(cand.Agent),
+	}, nil
+}
 
 func Agent(id int) {
 	lib.Sugar.Infof("Agent %d: I am started", id)
 	ticker := time.NewTicker(time.Duration(lib.TIME_REQUESTING_MS) * time.Millisecond)
+
+	conn, err := grpc.NewClient("localhost:50051", grpc.WithInsecure())
+	if err != nil {
+		lib.Sugar.Fatalf("Error connecting with orchestrator: %v", err)
+	}
+	defer conn.Close()
+
+	client := ExprsClient{}
 
 	calcsin := make(chan lib.Task)
 	calcsout := make(chan lib.Task)
@@ -61,11 +89,9 @@ func Agent(id int) {
 
 				if resTask.ID == exprslot.LastTask {
 					lib.Sugar.Infof("Agent %d: Task %d - last task, sending to orchestartor", id, resTask.ID)
-					data, _ := json.Marshal(lib.TaskInc{ID: exprslot.ID, Result: resTask.Ans})
-					r := bytes.NewReader(data)
-					_, err := http.Post("http://localhost:8080/internal/task", "application/json", r)
+					err := database.DBM.UpdExpr(exprslot.ID, 2, id, resTask.Ans)
 					if err != nil {
-						fmt.Println(err)
+						lib.Sugar.Errorf("Error updating the expression: %v", err)
 					}
 					busy = false
 				}
@@ -75,31 +101,23 @@ func Agent(id int) {
 			}
 		case <-ticker.C:
 			if !busy {
-				conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
-				if err != nil {
-					log.Fatalf("Error: %v", err)
-				}
-				defer conn.Close()
-
-				client := pb.NewUserServiceClient(conn)
-
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-				defer cancel()
 
-				req := &pb.UserRequest{}
-				expr, err := client.GetUser(ctx, req)
+				expr, err := client.GetExpr(ctx, &pb.ExprRequest{})
 				if err != nil {
-					log.Fatalf("Error: %v", err)
-				}
-
-				cand, _ := database.DBM.GetExpr(expr.ID)
-				if cand.Agent != -1 {
-					lib.Sugar.Errorf("Agent %d: Expression blocked", id)
+					lib.Sugar.Errorf("Error getting the expression: %v", err) // Очень часто пишет эту ошибку, когда нету выражений
+					cancel()
 					continue
 				}
-				database.DBM.UpdExpr(expr.ID, 1, id, 0)
+				database.DBM.UpdExpr(int(expr.ID), 1, id, 0)
 				lib.Sugar.Infof("Agent %d: Got expression %d", id, expr.ID)
-				exprslot = expr
+				exprslot.ID = int(expr.ID)
+				exprslot.UserID = int(expr.ID)
+				exprslot.Oper = expr.Oper
+				exprslot.LastTask = int(expr.LastTask)
+				exprslot.Ans = expr.Ans
+				exprslot.Status = int8(expr.Status)
+				exprslot.Agent = int(expr.Agent)
 				busy = true
 			}
 		default:
